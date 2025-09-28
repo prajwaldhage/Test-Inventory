@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bill History</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- jQuery -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .table-search:focus {
+            box-shadow: 0 0 0 2px #3b82f6;
+            border-color: #3b82f6;
+        }
+        /* Make table horizontally scrollable on small screens */
+        .table-container {
+            overflow-x: auto;
+        }
+        th, td {
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4">
+
+    <div class="container w-full max-w-7xl mx-auto bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+        <div class="flex justify-between items-center mb-6 border-b pb-4">
+            <div class="text-left">
+                <h1 class="text-3xl font-bold text-gray-800">Bill History</h1>
+                <p class="text-gray-500 mt-2">A record of all generated bills.</p>
+            </div>
+            <a href="/" class="btn bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-md inline-flex items-center">
+                <i class="fas fa-plus mr-2"></i> Create New Bill
+            </a>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="mb-4">
+            <input type="text" id="search-input" placeholder="Search by customer name..." class="w-full p-2 border border-gray-300 rounded-md table-search transition">
+        </div>
+
+        <!-- Bills Table -->
+        <div class="table-container">
+            <table class="w-full text-sm text-left text-gray-600">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                    <!-- Table headers updated to match new schema -->
+                    <tr>
+                        <th scope="col" class="px-6 py-3">Bill ID</th>
+                        <th scope="col" class="px-6 py-3">Customer Name</th>
+                        <th scope="col" class="px-6 py-3">Total Items</th>
+                        <th scope="col" class="px-6 py-3">Bill Amount</th>
+                        <th scope="col" class="px-6 py-3">Tax Amount</th>
+                        <th scope="col" class="px-6 py-3">Discount Amount</th>
+                        <th scope="col" class="px-6 py-3">Total Amount</th>
+                        <th scope="col" class="px-6 py-3">Profit Earned</th>
+                        <th scope="col" class="px-6 py-3">Payment Method</th>
+                        <th scope="col" class="px-6 py-3">Payment Date</th>
+                        <th scope="col" class="px-6 py-3">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="history-table-body">
+                    <tr>
+                        <td colspan="11" class="text-center p-8">
+                            <i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i>
+                            <p class="mt-2 text-gray-500">Loading bill history...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+<script>
+$(document).ready(function() {
+    const tableBody = $('#history-table-body');
+    let allBills = []; // Cache for the bills data
+
+    function formatCurrency(value) {
+        // Handle cases where value might be null or undefined
+        if (value === null || typeof value === 'undefined') {
+            return 'N/A';
+        }
+        return `$${parseFloat(value).toFixed(2)}`;
+    }
+
+    function formatStatus(status) {
+        if (!status) return '<span class="bg-gray-100 text-gray-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">N/A</span>';
+        if (status.toUpperCase() === 'SUCCESSFUL') {
+            return `<span class="bg-green-100 text-green-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">${status}</span>`;
+        }
+         if (status.toUpperCase() === 'PENDING') {
+            return `<span class="bg-yellow-100 text-yellow-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">${status}</span>`;
+        }
+        return `<span class="bg-red-100 text-red-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">${status}</span>`;
+    }
+
+    function renderTable(bills) {
+        tableBody.empty();
+        if (bills.length === 0) {
+            tableBody.html('<tr><td colspan="11" class="text-center p-8 text-gray-500">No bills found.</td></tr>');
+            return;
+        }
+        bills.forEach(bill => {
+            // Using new JSON keys from the backend (TAX_AMOUNT, STATUS)
+            const row = `
+                <tr class="bg-white border-b hover:bg-gray-50">
+                    <td class="px-6 py-4 font-medium text-gray-900">#${bill.BILL_ID}</td>
+                    <td class="px-6 py-4">${bill.CUSTOMER_NAME}</td>
+                    <td class="px-6 py-4">${bill.TOTAL_ITEMS}</td>
+                    <td class="px-6 py-4">${formatCurrency(bill.BILL_AMOUNT)}</td>
+                    <td class="px-6 py-4">${formatCurrency(bill.TAX_AMOUNT)}</td>
+                    <td class="px-6 py-4">${formatCurrency(bill.DISCOUNT_AMOUNT)}</td>
+                    <td class="px-6 py-4 font-bold text-blue-600">${formatCurrency(bill.TOTAL_AMOUNT)}</td>
+                    <td class="px-6 py-4 text-green-600 font-semibold">${formatCurrency(bill.PROFIT_EARNED)}</td>
+                    <td class="px-6 py-4">${bill.PAYMENT_METHOD}</td>
+                    <td class="px-6 py-4">${bill.PAYMENT_DATE}</td>
+                    <td class="px-6 py-4">${formatStatus(bill.STATUS)}</td>
+                </tr>
+            `;
+            tableBody.append(row);
+        });
+    }
+
+    function fetchBills() {
+        $.ajax({
+            url: '/api/bills',
+            method: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                allBills = data;
+                renderTable(allBills);
+            },
+            error: function() {
+                tableBody.html('<tr><td colspan="11" class="text-center p-8 text-red-500">Failed to load bill history. Please ensure the server is running.</td></tr>');
+            }
+        });
+    }
+
+    $('#search-input').on('keyup', function() {
+        const searchTerm = $(this).val().toLowerCase();
+        const filteredBills = allBills.filter(bill => {
+            return bill.CUSTOMER_NAME.toLowerCase().includes(searchTerm);
+        });
+        renderTable(filteredBills);
+    });
+
+    // Initial load
+    fetchBills();
+});
+</script>
+
+</body>
+</html>
+
