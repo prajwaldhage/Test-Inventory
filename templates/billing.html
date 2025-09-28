@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Billing Form</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- jQuery -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <!-- QR Code Generator -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom styles for better focus and transitions */
+        .form-input {
+            transition: all 0.3s ease-in-out;
+        }
+        .form-input:focus {
+            box-shadow: 0 0 0 2px #3b82f6;
+            border-color: #3b82f6;
+        }
+        .btn {
+            transition: background-color 0.3s ease-in-out;
+        }
+        /* Styles for the suggestions dropdown */
+        .suggestions-container {
+            position: absolute;
+            border: 1px solid #ddd;
+            border-top: none;
+            z-index: 99;
+            width: 100%;
+            max-height: 150px;
+            overflow-y: auto;
+            background-color: white;
+        }
+        .suggestion-item {
+            padding: 10px;
+            cursor: pointer;
+        }
+        .suggestion-item:hover {
+            background-color: #f0f0f0;
+        }
+        /* Style for disabled inputs */
+        input:disabled, button:disabled {
+            background-color: #f3f4f6;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        /* Styles for printing the modal */
+        @media print {
+         body * {
+            visibility: hidden;
+          }
+         .bill-preview-content, .bill-preview-content * {
+            visibility: visible;
+          }
+         .bill-preview-content {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            border: none;
+            box-shadow: none;
+          }
+         .no-print {
+            display: none;
+          }
+        }
+        #qrcode-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+        .toast {
+            visibility: hidden;
+            min-width: 250px;
+            margin-left: -125px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 100;
+            left: 50%;
+            bottom: 30px;
+            opacity: 0;
+            transition: opacity 0.5s, visibility 0.5s;
+        }
+        .toast.show {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4">
+
+    <div class="form-container w-full max-w-4xl mx-auto bg-white p-6 sm:p-8 rounded-xl shadow-lg mb-8">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Billing Form</h1>
+            <p class="text-gray-500 mt-2">Create and calculate a new bill for your customer.</p>
+        </div>
+        
+        <form id="billing-form">
+            <!-- Customer Details Section -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 border-b pb-8 border-gray-200">
+                <div class="relative"> 
+                    <label for="customer_name" class="block text-sm font-medium text-gray-700 mb-1">Customer Name:</label>
+                    <input type="text" id="customer_name" name="customer_name" required class="form-input w-full p-2 border border-gray-300 rounded-md shadow-sm" autocomplete="off">
+                    <div id="name-suggestions" class="suggestions-container rounded-b-md shadow-md hidden"></div>
+                </div>
+                <div>
+                    <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Phone Number:</label>
+                    <input type="tel" id="phone" name="phone" pattern="[0-9]{10}" required class="form-input w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div>
+                    <label for="bill_date" class="block text-sm font-medium text-gray-700 mb-1">Date:</label>
+                    <input type="date" id="bill_date" name="bill_date" required class="form-input w-full p-2 border border-gray-300 rounded-md shadow-sm bg-white">
+                </div>
+                <div>
+                    <label for="customer_type" class="block text-sm font-medium text-gray-700 mb-1">Customer Type:</label>
+                    <select id="customer_type" name="customer_type" required class="form-input w-full p-2 border border-gray-300 rounded-md shadow-sm bg-white">
+                        <option value="">Select Type</option>
+                        <option value="Wholesale">Wholesale</option>
+                        <option value="Retail">Retail</option>
+                        <option value="Hotel-Line">Hotel-Line</option>
+                    </select>
+                </div>
+                 <div>
+                    <label for="payment_method" class="block text-sm font-medium text-gray-700 mb-1">Payment Method:</label>
+                    <select id="payment_method" name="payment_method" required class="form-input w-full p-2 border border-gray-300 rounded-md shadow-sm bg-white">
+                        <option value="">Select Payment Method</option>
+                        <option value="cash">Cash</option>
+                        <option value="card">Card</option>
+                        <option value="upi">UPI</option>
+                        <option value="credit">Credit</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="bill_time" class="block text-sm font-medium text-gray-700 mb-1">Time:</label>
+                    <input type="time" id="bill_time" name="bill_time" required class="form-input w-full p-2 border border-gray-300 rounded-md shadow-sm bg-white">
+                </div>
+            </div>
+
+            <!-- Products Table -->
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Products</h3>
+            <div>
+                <table class="w-full text-sm text-left text-gray-500">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-4 py-3">Product</th>
+                            <th scope="col" class="px-4 py-3">Quantity</th>
+                            <th scope="col" class="px-4 py-3">Price</th>
+                            <th scope="col" class="px-4 py-3">Total</th>
+                            <th scope="col" class="px-4 py-3">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="products-body">
+                        <!-- Product rows will be inserted here by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            <button type="button" id="add-product-btn" class="btn mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md inline-flex items-center">
+                <i class="fas fa-plus mr-2"></i> Add Product
+            </button>
+
+            <!-- Order Summary -->
+            <div class="order-summary mt-8 pt-6 border-t border-gray-200 flex justify-end">
+                <div class="w-full md:w-1/2 lg:w-1/3">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Order Summary</h3>
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Subtotal:</span>
+                            <span id="subtotal" class="font-medium text-gray-800">$0.00</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Tax (18%):</span>
+                            <span id="tax" class="font-medium text-gray-800">$0.00</span>
+                        </div>
+                        <div class="flex justify-between text-xl font-bold">
+                            <span class="text-gray-900">Total:</span>
+                            <span id="total" class="text-blue-600">$0.00</span>
+                        </div>
+                    </div>
+                     <button type="submit" id="generate-bill-btn" class="btn w-full mt-6 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-md text-lg">
+                        <i class="fas fa-file-invoice-dollar mr-2"></i> Generate Bill
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <!-- QR Code Modal -->
+    <div id="qr-code-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-sm w-full overflow-hidden">
+            <div class="bg-gray-100 p-4 border-b">
+                <h2 class="text-xl font-bold text-center text-gray-700 flex items-center justify-center"><i class="fas fa-qrcode mr-3"></i>Scan to Pay with UPI</h2>
+            </div>
+            <div class="p-8">
+                <div id="qrcode-container">
+                    <div id="qrcode"></div>
+                </div>
+                <p class="text-center text-lg font-bold mb-6 text-gray-800">Total Amount: <span id="qr-total-amount" class="text-blue-600"></span></p>
+            </div>
+             <div class="bg-gray-50 p-4 text-center">
+                <button id="confirm-payment-btn" class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-md mr-4">
+                    Confirm Payment
+                </button>
+                <button id="close-qr-modal-btn" class="btn bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded-md">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bill Preview Modal -->
+    <div id="bill-preview-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full bill-preview-content overflow-hidden">
+             <div class="bg-gray-100 p-4 border-b">
+                <h2 class="text-xl font-bold text-center text-gray-700 flex items-center justify-center"><i class="fas fa-receipt mr-3"></i>Invoice Preview</h2>
+            </div>
+            <div class="p-8">
+                <div class="grid grid-cols-2 gap-4 mb-6 border-b pb-4">
+                    <div><p class="text-sm text-gray-600">Customer Name:</p><p id="modal-customer-name" class="font-semibold"></p></div>
+                    <div><p class="text-sm text-gray-600">Phone Number:</p><p id="modal-phone" class="font-semibold"></p></div>
+                    <div><p class="text-sm text-gray-600">Customer Type:</p><p id="modal-customer-type" class="font-semibold"></p></div>
+                    <div><p class="text-sm text-gray-600">Payment Method:</p><p id="modal-payment-method" class="font-semibold"></p></div>
+                    <div><p class="text-sm text-gray-600">Date:</p><p id="modal-bill-date" class="font-semibold"></p></div>
+                    <div><p class="text-sm text-gray-600">Time:</p><p id="modal-bill-time" class="font-semibold"></p></div>
+                </div>
+
+                <table class="w-full text-sm mb-6">
+                    <thead>
+                        <tr class="border-b"><th class="text-left py-2">Product</th><th class="text-center py-2">Qty</th><th class="text-right py-2">Price</th><th class="text-right py-2">Total</th></tr>
+                    </thead>
+                    <tbody id="modal-products-body"></tbody>
+                </table>
+
+                <div class="flex justify-end">
+                    <div class="w-1/2">
+                        <div class="flex justify-between mb-2"><span class="text-gray-600">Subtotal:</span><span id="modal-subtotal" class="font-semibold"></span></div>
+                        <div class="flex justify-between mb-2"><span class="text-gray-600">Tax (18%):</span><span id="modal-tax" class="font-semibold"></span></div>
+                        <div class="flex justify-between font-bold text-lg border-t pt-2"><span>Total:</span><span id="modal-total"></span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 p-4 text-center no-print">
+                <button id="confirm-print-btn" class="btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-md mr-4">
+                    <i class="fas fa-print mr-2"></i>Print Bill
+                </button>
+                <button id="close-modal-btn" class="btn bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded-md">Close</button>
+            </div>
+        </div>
+    </div>
+
+
+<script>
+$(document).ready(function() {
+    const productsBody = $('#products-body');
+    const addProductBtn = $('#add-product-btn');
+    const subtotalEl = $('#subtotal');
+    const taxEl = $('#tax');
+    const totalEl = $('#total');
+    let qrCodeInstance = null;
+
+    function showToast(message, isError = false) {
+        const toastElement = $('#toast');
+        toastElement.text(message);
+        toastElement.removeClass('bg-red-600 bg-gray-800').addClass(isError ? 'bg-red-600' : 'bg-gray-800');
+        toastElement.addClass('show');
+        setTimeout(() => {
+            toastElement.removeClass('show');
+        }, 3000);
+    }
+
+    function handleAjaxError(jqXHR, textStatus, errorThrown, context) {
+        let errorMessage = `Error: Could not ${context}.`;
+        if (textStatus === 'timeout') {
+            errorMessage += ' The request timed out.';
+        } else if (textStatus === 'error') {
+            if (jqXHR.status === 0) {
+                errorMessage += ' Connection failed. Please ensure the Python server is running and accessible.';
+            } else {
+                errorMessage += ` HTTP Error ${jqXHR.status}: ${errorThrown}`;
+            }
+        }
+        showToast(errorMessage, true);
+    }
+
+    // --- Set Current Date and Time ---
+    function setCurrentDateTime() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+        const day = now.getDate().toString().padStart(2, '0');
+        const formattedDate = `${year}-${month}-${day}`;
+        const hours = now.getHours().toString().padStart(2, '0');
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        const formattedTime = `${hours}:${minutes}`;
+        $('#bill_date').val(formattedDate);
+        $('#bill_time').val(formattedTime);
+    }
+    setCurrentDateTime();
+
+    // --- Customer Name Suggestion ---
+    $('#customer_name').on('keyup', function() {
+        const query = $(this).val();
+        const suggestionsBox = $('#name-suggestions');
+        if (query.length < 2) {
+            suggestionsBox.html('').addClass('hidden');
+            return;
+        }
+        $.ajax({
+            url: 'http://127.0.0.1:5000/api/customers', 
+            method: 'GET',
+            data: { term: query },
+            dataType: 'json', 
+            success: function(suggestions) {
+                suggestionsBox.html('').addClass('hidden');
+                if (suggestions.length > 0) {
+                    suggestions.forEach(customer => {
+                        const suggestionItem = $(`<div class="suggestion-item">${customer.name}</div>`);
+                        suggestionItem.data('customer', customer); 
+                        suggestionsBox.append(suggestionItem);
+                    });
+                    suggestionsBox.removeClass('hidden');
+                }
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                handleAjaxError(jqXHR, textStatus, errorThrown, "fetch customer suggestions");
+            }
+        });
+    });
+
+    $('#name-suggestions').on('click', '.suggestion-item', function() {
+        const customer = $(this).data('customer');
+        $('#customer_name').val(customer.name);
+        $('#phone').val(customer.mobile);
+        $('#customer_type').val(customer.type).trigger('change');
+        $('#name-suggestions').html('').addClass('hidden');
+    });
+
+    // --- Product Suggestion Logic ---
+    productsBody.on('keyup', '.product-name-input', function() {
+        const inputField = $(this);
+        const query = inputField.val();
+        const suggestionsBox = inputField.siblings('.product-suggestions');
+        const customerType = $('#customer_type').val();
+        if (query.length < 2) {
+            suggestionsBox.html('').addClass('hidden');
+            return;
+        }
+        if (!customerType) {
+            showToast("Please select a customer type first.", true);
+            return;
+        }
+        $.ajax({
+            url: 'http://127.0.0.1:5000/api/products',
+            method: 'GET',
+            data: { term: query, customer_type: customerType },
+            dataType: 'json',
+            success: function(suggestions) {
+                suggestionsBox.html('').addClass('hidden');
+                if (suggestions.length > 0) {
+                    suggestionsBox.html(''); // Clear previous suggestions
+                    suggestions.forEach(product => {
+                        const suggestionItem = $(`<div class="suggestion-item text-sm">${product.name}</div>`);
+                        suggestionItem.data('product', product);
+                        suggestionsBox.append(suggestionItem);
+                    });
+                    suggestionsBox.removeClass('hidden');
+                }
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                handleAjaxError(jqXHR, textStatus, errorThrown, "fetch product suggestions");
+            }
+        });
+    });
+
+    productsBody.on('click', '.suggestion-item', function() {
+        const product = $(this).data('product');
+        const parentRow = $(this).closest('.product-row');
+        parentRow.find('.product-name-input').val(product.name);
+        parentRow.find('.price').val(product.price);
+        $(this).closest('.product-suggestions').html('').addClass('hidden');
+        calculateTotals();
+    });
+
+    // --- UI LOGIC ---
+    $('#customer_type').on('change', function() {
+        const customerType = $(this).val();
+        $('.product-name-input').prop('disabled', !customerType);
+    });
+
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('#customer_name, #name-suggestions').length) {
+            $('#name-suggestions').html('').addClass('hidden');
+        }
+        if (!$(e.target).closest('.product-row').length) {
+            $('.product-suggestions').html('').addClass('hidden');
+        }
+    });
+
+    // --- Billing Logic ---
+    function addProductRow() {
+        const rowHTML = `
+            <tr class="bg-white border-b product-row">
+                <td class="px-4 py-2 relative">
+                    <input type="text" name="product[]" class="form-input w-full p-2 border border-gray-300 rounded-md product-name-input" required autocomplete="off" disabled>
+                    <div class="product-suggestions suggestions-container rounded-b-md shadow-md hidden"></div>
+                </td>
+                <td class="px-4 py-2"><input type="number" name="quantity[]" min="1" value="1" class="form-input w-full p-2 border border-gray-300 rounded-md quantity" required></td>
+                <td class="px-4 py-2"><input type="number" name="price[]" min="0" step="0.01" value="0.00" class="form-input w-full p-2 border border-gray-300 rounded-md price" required></td>
+                <td class="px-4 py-2 font-medium text-gray-900 row-total">$0.00</td>
+                <td class="px-4 py-2"><button type="button" class="remove-product-btn text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button></td>
+            </tr>`;
+        const newRow = $(rowHTML);
+        productsBody.append(newRow);
+        if ($('#customer_type').val()) {
+            newRow.find('.product-name-input').prop('disabled', false);
+        }
+    }
+
+    function calculateTotals() {
+        let subtotal = 0;
+        $('.product-row').each(function() {
+            const row = $(this);
+            const quantity = parseFloat(row.find('.quantity').val()) || 0;
+            const price = parseFloat(row.find('.price').val()) || 0;
+            const rowTotal = quantity * price;
+            row.find('.row-total').text(`$${rowTotal.toFixed(2)}`);
+            subtotal += rowTotal;
+        });
+        const tax = subtotal * 0.18;
+        const total = subtotal + tax;
+        subtotalEl.text(`$${subtotal.toFixed(2)}`);
+        taxEl.text(`$${tax.toFixed(2)}`);
+        totalEl.text(`$${total.toFixed(2)}`);
+    }
+
+    addProductBtn.on('click', addProductRow);
+    productsBody.on('click', '.remove-product-btn', function() {
+        $(this).closest('.product-row').remove();
+        calculateTotals();
+    });
+    productsBody.on('input', '.quantity, .price', calculateTotals);
+
+    addProductRow();
+    
+    // --- Modal Logic ---
+    function showBillPreview() {
+        $('#modal-customer-name').text($('#customer_name').val());
+        $('#modal-phone').text($('#phone').val());
+        $('#modal-customer-type').text($('#customer_type').val());
+        $('#modal-payment-method').text($('#payment_method').find('option:selected').text());
+        $('#modal-bill-date').text($('#bill_date').val());
+        $('#modal-bill-time').text($('#bill_time').val());
+        const modalProductsBody = $('#modal-products-body');
+        modalProductsBody.html('');
+        $('.product-row').each(function() {
+            const row = $(this);
+            const name = row.find('.product-name-input').val();
+            const quantity = row.find('.quantity').val();
+            const price = parseFloat(row.find('.price').val()).toFixed(2);
+            const total = parseFloat(row.find('.row-total').text().replace('$', '')).toFixed(2);
+            if (name) {
+                modalProductsBody.append(`<tr><td class="py-2">${name}</td><td class="text-center py-2">${quantity}</td><td class="text-right py-2">$${price}</td><td class="text-right py-2">$${total}</td></tr>`);
+            }
+        });
+        $('#modal-subtotal').text($('#subtotal').text());
+        $('#modal-tax').text($('#tax').text());
+        $('#modal-total').text($('#total').text());
+        $('#bill-preview-modal').removeClass('hidden');
+    }
+
+    // --- Form Submission ---
+    $('#billing-form').on('submit', function(e) {
+        e.preventDefault();
+
+        const customerData = {
+            name: $('#customer_name').val().trim(),
+            phone: $('#phone').val().trim(),
+            type: $('#customer_type').val()
+        };
+
+        // Save new customer to the database via the Python server
+        $.ajax({
+            url: 'http://127.0.0.1:5000/api/customers',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(customerData),
+            success: function(response) {
+                showToast(response.message);
+                
+                // After attempting to save, proceed with generating the bill
+                const paymentMethod = $('#payment_method').val();
+                if (paymentMethod === 'upi') {
+                    const totalAmount = parseFloat($('#total').text().replace('$', '')).toFixed(2);
+                    if (totalAmount <= 0) {
+                        showToast("Please add items to the bill.", true);
+                        return;
+                    }
+                    const upiString = `upi://pay?pa=7276962289@yespop&pn=TERA BAAP&am=${totalAmount}&cu=INR`;
+                    
+                    $('#qrcode').html('');
+                    qrCodeInstance = new QRCode(document.getElementById("qrcode"), {
+                        text: upiString,
+                        width: 200,
+                        height: 200,
+                    });
+                    $('#qr-total-amount').text(`$${totalAmount}`);
+                    $('#qr-code-modal').removeClass('hidden');
+                } else {
+                    showBillPreview();
+                }
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                handleAjaxError(jqXHR, textStatus, errorThrown, "save customer data");
+            }
+        });
+    });
+
+    $('#close-modal-btn, #close-qr-modal-btn').on('click', function() {
+        $('#bill-preview-modal').addClass('hidden');
+        $('#qr-code-modal').addClass('hidden');
+    });
+
+    $('#confirm-payment-btn').on('click', function() {
+        $('#qr-code-modal').addClass('hidden');
+        showBillPreview();
+    });
+
+    $('#confirm-print-btn').on('click', function() {
+        window.print();
+    });
+});
+</script>
+
+</body>
+</html>
+
